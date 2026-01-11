@@ -57,7 +57,14 @@
     }));
   }
 
-  // Expose API ke Window (Agar dibaca admin-v3.js)
+   // --- Tambahkan fungsi signUp di dalam file store-v3.js ---
+  async function signUp(email, password) {
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) throw error;
+    return data.user;
+  }
+
+  // --- Pastikan bagian ini lengkap ---
   window.api = {
     supabase,
     isConfigured: () => !!supabase,
@@ -65,13 +72,40 @@
     validateVoucher,
     submitBallot,
     signIn,
+    signUp, // <--- Ini yang bikin error karena tadi tidak ada
     signOut,
     listVouchers,
     voteCounts,
+    addCandidate: async (name, photoUrl) => {
+      const { data, error } = await supabase.from('candidates').insert([{ name, photo_url: photoUrl }]);
+      if (error) throw error;
+      return data;
+    },
+    updateCandidate: async (id, updates) => {
+      const { data, error } = await supabase.from('candidates').update(updates).eq('id', id);
+      if (error) throw error;
+      return data;
+    },
+    deleteCandidate: async (id) => {
+      const { error } = await supabase.from('candidates').delete().eq('id', id);
+      if (error) throw error;
+      return true;
+    },
+    generateVouchers: async (count) => {
+      // Logika generate voucher otomatis di sisi client (browser)
+      const newVouchers = Array.from({ length: count }, () => ({
+        code: Math.random().toString(36).substring(2, 8).toUpperCase(),
+        is_used: false
+      }));
+      const { data, error } = await supabase.from('vouchers').insert(newVouchers);
+      if (error) throw error;
+      return data;
+    },
+    bootstrapAdmin: async () => true,
     subscribeVoteChanges: (handler) => {
+        if (!supabase) return { unsubscribe: () => {} };
         return supabase.channel('custom-all-channel')
           .on('postgres_changes', { event: '*', schema: 'public', table: 'ballot_votes' }, () => handler())
           .subscribe();
     }
   }
-})()
