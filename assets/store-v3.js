@@ -1,32 +1,21 @@
+// Gunakan var agar variabel ini bisa diakses secara global oleh admin-v3.js
+var supabase = null;
+
 ;(function () {
-  let supabase = null;
-
-  // 1. Fungsi Inisialisasi - Menggunakan nama variabel sesuai config.js kamu
-  function initSupabase() {
-    const url = window.SUPABASE_URL; // Sesuai baris 1 di config.js
-    const key = window.SUPABASE_ANON_KEY; // Sesuai baris 2 di config.js
-
-    if (url && key && window.supabase) {
-      supabase = window.supabase.createClient(url, key);
-      window.api.supabase = supabase;
-      return true;
-    }
-    return false;
-  }
-
-  // Jalankan inisialisasi saat file dimuat
-  initSupabase();
-
-  // --- Implementasi Fungsi ---
+  // 1. BUAT OBJEK API DULU (Agar tidak error 'undefined' saat diisi)
   window.api = {
-    supabase: supabase,
-    setSupabaseConfig: (url, key) => {
-        window.SUPABASE_URL = url;
-        window.SUPABASE_ANON_KEY = key;
-        return initSupabase();
-    },
+    supabase: null,
     isConfigured: () => !!supabase,
     
+    setSupabaseConfig: function(url, key) {
+        if (url && key && window.supabase) {
+            supabase = window.supabase.createClient(url, key);
+            this.supabase = supabase; // Update properti di dalam api
+            return true;
+        }
+        return false;
+    },
+
     signIn: async (email, password) => {
       if (!supabase) throw new Error("Database belum siap. Cek config.js");
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -36,7 +25,6 @@
     },
 
     signUp: async (email, password) => {
-      if (!supabase) throw new Error("Database belum siap");
       const { data, error } = await supabase.auth.signUp({ email, password });
       if (error) throw error;
       return data.user;
@@ -107,4 +95,12 @@
         .subscribe();
     }
   };
+
+  // 2. JALANKAN INISIALISASI SETELAH OBJEK API DIBUAT
+  const url = window.SUPABASE_URL; // Dari config.js
+  const key = window.SUPABASE_ANON_KEY; // Dari config.js
+
+  if (url && key) {
+    window.api.setSupabaseConfig(url, key);
+  }
 })();
