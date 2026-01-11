@@ -1,33 +1,34 @@
 ;(function () {
-  // Variabel internal
   let supabase = null;
 
-  // Fungsi inisialisasi agar sinkron dengan admin-v3.js
-  function initSupabase(url, key) {
+  // 1. Fungsi Inisialisasi - Menggunakan nama variabel sesuai config.js kamu
+  function initSupabase() {
+    const url = window.SUPABASE_URL; // Sesuai baris 1 di config.js
+    const key = window.SUPABASE_ANON_KEY; // Sesuai baris 2 di config.js
+
     if (url && key && window.supabase) {
       supabase = window.supabase.createClient(url, key);
-      window.api.supabase = supabase; // Update global api object
-      console.log("Supabase initialized!");
+      window.api.supabase = supabase;
       return true;
     }
     return false;
   }
 
-  // Ambil dari config.js dulu kalau ada
-  if (window.config) {
-    initSupabase(window.config.url, window.config.key);
-  }
+  // Jalankan inisialisasi saat file dimuat
+  initSupabase();
 
   // --- Implementasi Fungsi ---
   window.api = {
     supabase: supabase,
-    
-    // Fungsi yang diminta admin-v3.js agar tidak error undefined
-    setSupabaseConfig: (url, key) => initSupabase(url, key),
+    setSupabaseConfig: (url, key) => {
+        window.SUPABASE_URL = url;
+        window.SUPABASE_ANON_KEY = key;
+        return initSupabase();
+    },
     isConfigured: () => !!supabase,
     
     signIn: async (email, password) => {
-      if (!supabase) throw new Error("Database belum siap");
+      if (!supabase) throw new Error("Database belum siap. Cek config.js");
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       localStorage.setItem('ADMIN_SESSION', 'true');
@@ -48,6 +49,7 @@
     },
 
     getCandidates: async () => {
+      if (!supabase) return [];
       const { data, error } = await supabase.from('candidates').select('*').order('name');
       if (error) throw error;
       return data || [];
@@ -100,10 +102,9 @@
 
     subscribeVoteChanges: (handler) => {
       if (!supabase) return { unsubscribe: () => {} };
-      const channel = supabase.channel('realtime-votes')
+      return supabase.channel('realtime-votes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'ballot_votes' }, () => handler())
         .subscribe();
-      return channel;
     }
   };
 })();
