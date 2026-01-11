@@ -1,128 +1,77 @@
 ;(function () {
-  // Base URL API (otomatis deteksi relative path)
-  const API_URL = 'api';
-
-  // Helper untuk Fetch API
-  async function apiCall(endpoint, method = 'GET', body = null) {
-    const opts = {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-    }
-    if (body) opts.body = JSON.stringify(body)
-    
-    const res = await fetch(`${API_URL}/${endpoint}`, opts)
-    const data = await res.json()
-    if (!res.ok) throw new Error(data.error || 'API Error')
-    return data
-  }
-
-  // --- Implementasi Fungsi ---
+  // Ambil config dari file config.js atau variabel global
+  const { url, key } = window.config || { url: '', key: '' };
+  const supabase = url && key ? window.supabase.createClient(url, key) : null;
 
   async function getCandidates() {
-    return apiCall('candidates.php')
+    const { data, error } = await supabase.from('candidates').select('*').order('name');
+    if (error) throw error;
+    return data;
   }
 
   async function validateVoucher(code) {
-    return apiCall(`vouchers.php?action=validate`, 'POST', { code })
+    const { data, error } = await supabase.from('vouchers').select('is_used').eq('code', code).single();
+    if (error || !data) return false;
+    return !data.is_used;
   }
 
   async function submitBallot(code, candidateIds) {
-    return apiCall('vote.php', 'POST', { code, candidateIds })
+    // Memanggil fungsi SQL yang kita buat tadi
+    const { error } = await supabase.rpc('submit_ballot', { 
+      voucher_code: code, 
+      candidate_ids: candidateIds 
+    });
+    if (error) throw error;
+    return true;
   }
 
   async function signIn(email, password) {
-    const res = await apiCall('login.php', 'POST', { email, password })
-    if (res.success) {
-      localStorage.setItem('ADMIN_SESSION', 'true')
-      return { email }
-    }
-    throw new Error('Login failed')
-  }
-
-  async function signUp(email, password) {
-    // Tidak diimplementasikan di versi PHP simple ini, return success dummy
-    return { email }
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    localStorage.setItem('ADMIN_SESSION', 'true');
+    return data.user;
   }
 
   async function signOut() {
-    localStorage.removeItem('ADMIN_SESSION')
-    return true
+    await supabase.auth.signOut();
+    localStorage.removeItem('ADMIN_SESSION');
+    return true;
   }
 
-  async function addCandidate(name, photoUrl) {
-    return apiCall('candidates.php', 'POST', { name, photo_url: photoUrl })
-  }
-
-  async function updateCandidate(id, updates) {
-    return apiCall('candidates.php', 'PUT', { id, ...updates })
-  }
-
-  async function deleteCandidate(id) {
-    return apiCall(`candidates.php?id=${id}`, 'DELETE')
-  }
-
-  async function listVouchers(limit = 100) {
-    return apiCall(`vouchers.php?limit=${limit}`)
-  }
-
-  async function generateVouchers(count) {
-    return apiCall(`vouchers.php?action=generate`, 'POST', { count })
+  async function listVouchers() {
+    const { data, error } = await supabase.from('vouchers').select('*').order('created_at', { ascending: false });
+    if (error) throw error;
+    return data;
   }
 
   async function voteCounts() {
-    return apiCall('vote.php')
+    const { data, error } = await supabase
+      .from('candidates')
+      .select('id, name, photo_url, votes:ballot_votes(count)');
+    if (error) throw error;
+    return data.map(c => ({
+      id: c.id,
+      name: c.name,
+      photo_url: c.photo_url,
+      votes: c.votes[0]?.count || 0
+    }));
   }
 
-  async function bootstrapAdmin(email) {
-    return true
-  }
-
-  function subscribeVoteChanges(handler) {
-    // Polling sederhana setiap 5 detik
-    const interval = setInterval(async () => {
-      try {
-        const data = await voteCounts()
-        // Format data supaya sesuai format realtime Supabase jika perlu
-        // Tapi UI admin-v3.js menggunakan renderVoteTable() yang memanggil voteCounts() lagi?
-        // Cek admin-v3.js: subscribeVoteChanges menerima handler, handler dipanggil saat ada event.
-        // Di sini kita panggil handler secara berkala dengan data baru?
-        // Sebenarnya admin-v3.js me-reload data ketika event diterima.
-        // Jadi kita cukup panggil handler() kosong untuk trigger reload.
-        handler()
-      } catch (e) {}
-    }, 5000)
-    return { unsubscribe: () => clearInterval(interval) }
-  }
-
-  function setSupabaseConfig(url, key) {
-    // Tidak relevan lagi di versi PHP
-    return true
-  }
-
-  function getConfig() {
-    return { url: '', key: '' }
-  }
-
-  // Expose API ke Window
+  // Expose API ke Window (Agar dibaca admin-v3.js)
   window.api = {
-    supabase: null, // No supabase instance
-    isConfigured: () => true, // Selalu true karena config ada di server (PHP)
-    getDemoVoucher: () => null,
+    supabase,
+    isConfigured: () => !!supabase,
     getCandidates,
     validateVoucher,
     submitBallot,
     signIn,
-    signUp,
     signOut,
-    addCandidate,
-    updateCandidate,
-    deleteCandidate,
     listVouchers,
-    generateVouchers,
     voteCounts,
-    bootstrapAdmin,
-    subscribeVoteChanges,
-    setSupabaseConfig,
-    getSupabaseConfig: getConfig,
+    subscribeVoteChanges: (handler) => {
+        return supabase.channel('custom-all-channel')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'ballot_votes' }, () => handler())
+          .subscribe();
+    }
   }
 })()
