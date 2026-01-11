@@ -1,0 +1,5 @@
+* { font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; }
+.tab-btn { padding: 0.5rem 0.75rem; border-bottom: 2px solid transparent; }
+.tab-btn.active { border-color: rgb(37 99 235); color: rgb(37 99 235); }
+.candidate-card { border: 1px solid #e5e7eb; border-radius: 0.5rem; overflow: hidden; background: white; }
+.candidate-card.selected { outline: 2px solid rgb(22 163 74); }

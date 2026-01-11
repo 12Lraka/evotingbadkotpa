@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>E-Voting Pemilih</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/styles.css">
+  </head>
+  <body class="bg-gray-50 text-gray-900">
+    <div class="min-h-screen flex items-center justify-center p-4">
+      <div class="w-full max-w-4xl bg-white shadow-lg rounded-lg">
+        <div class="px-6 py-4 border-b">
+          <h1 class="text-2xl font-bold">E-Voting Formatur</h1>
+          <p class="text-sm text-gray-600">Masukkan kode voucher untuk memulai</p>
+        </div>
+
+        <div id="view-login" class="p-6 space-y-4">
+          <label class="block text-sm font-medium">Kode Voucher</label>
+          <input id="voucherInput" type="text" class="w-full rounded-md border px-3 py-2 focus:outline-none focus:ring focus:ring-blue-200" placeholder="Contoh: 9F3A7C1B2D">
+          <button id="btnLogin" class="w-full bg-blue-600 text-white rounded-md px-4 py-2 hover:bg-blue-700">Masuk</button>
+          <div id="loginError" class="hidden text-sm text-red-600"></div>
+        </div>
+
+        <div id="view-vote" class="hidden">
+          <div class="px-6 py-4 border-t flex items-center justify-between gap-4">
+            <div class="text-sm">Pilih tepat <span class="font-semibold">9</span> formatur</div>
+            <div class="text-sm">Terpilih: <span id="selectedCount" class="font-semibold">0</span>/9</div>
+            <div class="text-sm">Sisa waktu: <span id="timeRemaining" class="font-semibold">--:--</span></div>
+          </div>
+          <div id="candidateGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 p-6"></div>
+          <div class="px-6 pb-6">
+            <button id="btnSubmit" class="w-full bg-green-600 text-white rounded-md px-4 py-2 disabled:opacity-50" disabled>Submit</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="confirmModal" class="hidden fixed inset-0 bg-black/40 items-center justify-center">
+      <div class="bg-white w-full max-w-lg rounded-lg shadow-lg">
+        <div class="px-6 py-4 border-b">
+          <h2 class="text-xl font-semibold">Konfirmasi Pilihan</h2>
+          <p class="text-sm text-gray-600">Pastikan 9 nama berikut benar</p>
+        </div>
+        <div id="confirmList" class="p-6 space-y-2"></div>
+        <div class="px-6 py-4 border-t flex gap-3">
+          <button id="btnCancelConfirm" class="flex-1 rounded-md border px-4 py-2">Kembali</button>
+          <button id="btnFinalSubmit" class="flex-1 rounded-md bg-green-600 text-white px-4 py-2">Kirim</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="config.js?v=3"></script>
+    <script src="assets/store-v3.js"></script>
+    <script src="assets/voter-v3.js"></script>
+  </body>
+  </html>

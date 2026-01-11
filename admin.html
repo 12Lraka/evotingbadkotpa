@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>E-Voting Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="assets/styles.css">
+  </head>
+  <body class="bg-gray-50 text-gray-900">
+    <div class="min-h-screen flex items-center justify-center p-4">
+      <div class="w-full max-w-5xl bg-white shadow-lg rounded-lg">
+        <div class="px-6 py-4 border-b flex items-center justify-between">
+          <h1 class="text-2xl font-bold">Admin E-Voting</h1>
+          <div>
+            <button id="btnSignOut" class="hidden bg-blue-600 text-white rounded-md px-3 py-1 hover:bg-blue-700">Keluar</button>
+          </div>
+        </div>
+
+        <div id="admin-login" class="p-6 space-y-4">
+          <label class="block text-sm font-medium">Email Admin</label>
+          <input id="adminEmail" type="email" class="w-full rounded-md border px-3 py-2">
+          <label class="block text-sm font-medium">Password</label>
+          <input id="adminPassword" type="password" class="w-full rounded-md border px-3 py-2">
+          <button id="btnAdminLogin" class="w-full bg-blue-600 text-white rounded-md px-4 py-2">Masuk</button>
+          <div id="loginStatus" class="hidden text-sm mt-2 text-gray-600"></div>
+        </div>
+
+        <div id="admin-app" class="hidden">
+          <div class="px-6 border-b">
+            <nav class="flex gap-2">
+              <button data-tab="tab-candidates" class="tab-btn active">Calon</button>
+              <button data-tab="tab-vouchers" class="tab-btn">Voucher</button>
+              <button data-tab="tab-dashboard" class="tab-btn">Dashboard</button>
+            </nav>
+          </div>
+          <div id="tab-candidates" class="tab-view p-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div class="md:col-span-1">
+                <h2 class="text-lg font-semibold">Tambah Formatur</h2>
+                <div class="space-y-2">
+                  <input id="candName" type="text" class="w-full rounded-md border px-3 py-2" placeholder="Nama Lengkap">
+                  <input id="candPhoto" type="file" accept="image/*" class="w-full rounded-md border px-3 py-2">
+                  <button id="btnAddCandidate" class="w-full bg-green-600 text-white rounded-md px-4 py-2">Tambah</button>
+                </div>
+              </div>
+              <div class="md:col-span-2">
+                <h2 class="text-lg font-semibold">Daftar Calon</h2>
+                <div id="candidateList" class="space-y-2"></div>
+              </div>
+            </div>
+          </div>
+          <div id="tab-vouchers" class="tab-view hidden p-6">
+            <h2 class="text-lg font-semibold">Voucher Pemilih</h2>
+          <div class="flex items-end gap-3">
+            <div>
+              <label class="block text-sm">Jumlah</label>
+              <input id="voucherCount" type="number" min="1" max="2000" value="400" class="rounded-md border px-3 py-2">
+            </div>
+            <button id="btnGenerateVouchers" class="rounded-md bg-blue-600 text-white px-4 py-2">Generate</button>
+            <button id="btnExportVouchers" class="rounded-md border px-4 py-2">Export CSV</button>
+          </div>
+          <div id="voucherStatus" class="hidden text-sm mt-2 text-gray-600"></div>
+          <div id="voucherList" class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-2"></div>
+          </div>
+          <div id="tab-dashboard" class="tab-view hidden p-6">
+            <h2 class="text-lg font-semibold">Perolehan Suara</h2>
+            <table class="w-full border">
+              <thead>
+                <tr class="bg-gray-100">
+                  <th class="p-2 text-left">Calon</th>
+                  <th class="p-2 text-right">Suara</th>
+                </tr>
+              </thead>
+              <tbody id="voteTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="config.js?v=3"></script>
+    <script src="assets/store-v3.js"></script>
+    <script src="assets/admin-v3.js?v=2"></script>
+  </body>
+  </html>
