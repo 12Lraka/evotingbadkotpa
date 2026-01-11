@@ -1,111 +1,109 @@
 ;(function () {
-  // Ambil config dari file config.js atau variabel global
-  const { url, key } = window.config || { url: '', key: '' };
-  const supabase = url && key ? window.supabase.createClient(url, key) : null;
+  // Variabel internal
+  let supabase = null;
 
-  async function getCandidates() {
-    const { data, error } = await supabase.from('candidates').select('*').order('name');
-    if (error) throw error;
-    return data;
+  // Fungsi inisialisasi agar sinkron dengan admin-v3.js
+  function initSupabase(url, key) {
+    if (url && key && window.supabase) {
+      supabase = window.supabase.createClient(url, key);
+      window.api.supabase = supabase; // Update global api object
+      console.log("Supabase initialized!");
+      return true;
+    }
+    return false;
   }
 
-  async function validateVoucher(code) {
-    const { data, error } = await supabase.from('vouchers').select('is_used').eq('code', code).single();
-    if (error || !data) return false;
-    return !data.is_used;
+  // Ambil dari config.js dulu kalau ada
+  if (window.config) {
+    initSupabase(window.config.url, window.config.key);
   }
 
-  async function submitBallot(code, candidateIds) {
-    // Memanggil fungsi SQL yang kita buat tadi
-    const { error } = await supabase.rpc('submit_ballot', { 
-      voucher_code: code, 
-      candidate_ids: candidateIds 
-    });
-    if (error) throw error;
-    return true;
-  }
-
-  async function signIn(email, password) {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    localStorage.setItem('ADMIN_SESSION', 'true');
-    return data.user;
-  }
-
-  async function signOut() {
-    await supabase.auth.signOut();
-    localStorage.removeItem('ADMIN_SESSION');
-    return true;
-  }
-
-  async function listVouchers() {
-    const { data, error } = await supabase.from('vouchers').select('*').order('created_at', { ascending: false });
-    if (error) throw error;
-    return data;
-  }
-
-  async function voteCounts() {
-    const { data, error } = await supabase
-      .from('candidates')
-      .select('id, name, photo_url, votes:ballot_votes(count)');
-    if (error) throw error;
-    return data.map(c => ({
-      id: c.id,
-      name: c.name,
-      photo_url: c.photo_url,
-      votes: c.votes[0]?.count || 0
-    }));
-  }
-
-   // --- Tambahkan fungsi signUp di dalam file store-v3.js ---
-  async function signUp(email, password) {
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) throw error;
-    return data.user;
-  }
-
-  // --- Pastikan bagian ini lengkap ---
+  // --- Implementasi Fungsi ---
   window.api = {
-    supabase,
+    supabase: supabase,
+    
+    // Fungsi yang diminta admin-v3.js agar tidak error undefined
+    setSupabaseConfig: (url, key) => initSupabase(url, key),
     isConfigured: () => !!supabase,
-    getCandidates,
-    validateVoucher,
-    submitBallot,
-    signIn,
-    signUp, // <--- Ini yang bikin error karena tadi tidak ada
-    signOut,
-    listVouchers,
-    voteCounts,
+    
+    signIn: async (email, password) => {
+      if (!supabase) throw new Error("Database belum siap");
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      localStorage.setItem('ADMIN_SESSION', 'true');
+      return data.user;
+    },
+
+    signUp: async (email, password) => {
+      if (!supabase) throw new Error("Database belum siap");
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) throw error;
+      return data.user;
+    },
+
+    signOut: async () => {
+      if (supabase) await supabase.auth.signOut();
+      localStorage.removeItem('ADMIN_SESSION');
+      return true;
+    },
+
+    getCandidates: async () => {
+      const { data, error } = await supabase.from('candidates').select('*').order('name');
+      if (error) throw error;
+      return data || [];
+    },
+
     addCandidate: async (name, photoUrl) => {
       const { data, error } = await supabase.from('candidates').insert([{ name, photo_url: photoUrl }]);
       if (error) throw error;
       return data;
     },
+
     updateCandidate: async (id, updates) => {
-      const { data, error } = await supabase.from('candidates').update(updates).eq('id', id);
+      const { error } = await supabase.from('candidates').update(updates).eq('id', id);
       if (error) throw error;
-      return data;
     },
+
     deleteCandidate: async (id) => {
       const { error } = await supabase.from('candidates').delete().eq('id', id);
       if (error) throw error;
-      return true;
     },
+
     generateVouchers: async (count) => {
-      // Logika generate voucher otomatis di sisi client (browser)
       const newVouchers = Array.from({ length: count }, () => ({
         code: Math.random().toString(36).substring(2, 8).toUpperCase(),
         is_used: false
       }));
-      const { data, error } = await supabase.from('vouchers').insert(newVouchers);
+      const { data, error } = await supabase.from('vouchers').insert(newVouchers).select();
       if (error) throw error;
-      return data;
+      return (data || []).map(v => v.code);
     },
+
+    listVouchers: async (limit = 100) => {
+      const { data, error } = await supabase.from('vouchers').select('*').limit(limit).order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+
+    voteCounts: async () => {
+      const { data, error } = await supabase.from('candidates').select('id, name, photo_url, votes:ballot_votes(count)');
+      if (error) throw error;
+      return data.map(c => ({
+        id: c.id,
+        name: c.name,
+        photo_url: c.photo_url,
+        votes: c.votes[0]?.count || 0
+      }));
+    },
+
     bootstrapAdmin: async () => true,
+
     subscribeVoteChanges: (handler) => {
-        if (!supabase) return { unsubscribe: () => {} };
-        return supabase.channel('custom-all-channel')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'ballot_votes' }, () => handler())
-          .subscribe();
+      if (!supabase) return { unsubscribe: () => {} };
+      const channel = supabase.channel('realtime-votes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'ballot_votes' }, () => handler())
+        .subscribe();
+      return channel;
     }
-  }
+  };
+})();
